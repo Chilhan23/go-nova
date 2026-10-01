@@ -17,7 +17,7 @@
       --accent: #10b981;
       --text: #f1f5f9;
       --text-muted: #94a3b8;
-      --bubble-user: #1e293b;
+      --bubble-user: #1e3a8a;
       --bubble-ai: #1e1b4b;
       --bubble-prog: #064e3b;
       --radius: 12px;
@@ -228,16 +228,16 @@
 
     .msg.ai {
       align-self: flex-start;
-      background: rgba(99, 102, 241, 0.15);
-      border: 1px solid rgba(99, 102, 241, 0.3);
+      background: rgba(99, 102, 241, 0.2);
+      border: 1px solid rgba(99, 102, 241, 0.4);
       color: #e0e7ff;
       border-bottom-left-radius: 2px;
     }
 
     .msg.programmer {
       align-self: flex-start;
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.4);
       color: #d1fae5;
       border-bottom-left-radius: 2px;
     }
@@ -249,14 +249,17 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      opacity: 0.85;
+      opacity: 0.95;
     }
 
     .msg-img {
       max-width: 100%;
+      max-height: 250px;
       border-radius: 8px;
       margin-top: 8px;
       border: 1px solid rgba(255, 255, 255, 0.1);
+      display: block;
+      object-fit: cover;
     }
 
     .msg-time {
@@ -323,8 +326,8 @@
     }
 
     .badge-user { background: rgba(59, 130, 246, 0.3); color: #93c5fd; }
-    .badge-ai { background: rgba(139, 92, 246, 0.3); color: #c4b5fd; }
-    .badge-prog { background: rgba(16, 185, 129, 0.3); color: #6ee7b7; }
+    .badge-ai { background: rgba(139, 92, 246, 0.4); color: #c4b5fd; }
+    .badge-prog { background: rgba(16, 185, 129, 0.4); color: #6ee7b7; }
   </style>
 </head>
 <body>
@@ -401,7 +404,7 @@
       </div>
 
       <div class="chat-messages" id="chat-box">
-        <div style="text-align: center; color: var(--text-muted); font-size: 13px; margin: auto;">
+        <div style="text-align: center; color: var(--text-muted); font-size: 13px; margin: auto;" id="empty-notice">
           Click "Initialize Ticket" to start session and connect WebSocket.
         </div>
       </div>
@@ -458,6 +461,19 @@
       document.getElementById('chat-box').innerHTML = '';
     }
 
+    async function loadChatHistory(ticketId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/tickets/${ticketId}/messages`);
+        const data = await res.json();
+        if (data.status && Array.isArray(data.messages)) {
+          clearChat();
+          data.messages.forEach(m => renderMessage(m));
+        }
+      } catch (e) {
+        console.error("Failed to load history", e);
+      }
+    }
+
     async function initTicket() {
       const payload = {
         key_identifier: document.getElementById('inp-key').value.trim(),
@@ -487,7 +503,9 @@
 
           addLog('ws-in', `Ticket Initialized: ID=${activeTicketId}`, data.ticket);
           clearChat();
-          appendSystemMessage(`Ticket #${activeTicketCode} initialized for ${payload.user_name} (${payload.module_name}). Connecting WebSocket...`);
+          appendSystemMessage(`Ticket #${activeTicketCode} initialized for ${payload.user_name} (${payload.module_name}).`);
+          
+          await loadChatHistory(activeTicketId);
           connectWebSocket(activeTicketId);
         } else {
           addLog('error', 'Init Ticket Failed', data);
@@ -520,9 +538,10 @@
           const msg = JSON.parse(evt.data);
           addLog('ws-in', `WebSocket Received: ${msg.event || 'message'}`, msg);
 
-          if (msg.event === 'new_message' && msg.data) {
+          const eventName = msg.event || '';
+          if ((eventName === 'helpdesk_new_message' || eventName === 'new_message') && msg.data) {
             renderMessage(msg.data);
-          } else if (msg.event === 'ticket_claimed') {
+          } else if (eventName === 'ticket_claimed') {
             appendSystemMessage(`🧑‍💻 Ticket has been claimed by programmer: ${msg.data.programmer_name || 'Support Team'}`);
             document.getElementById('lbl-ticket-status').innerText = 'in_progress';
           }
@@ -551,6 +570,16 @@
       const inp = document.getElementById('inp-msg');
       const text = inp.value.trim();
       if (!text) return;
+
+      const userName = document.getElementById('inp-user-name').value.trim() || 'User';
+
+      // Langsung tampilkan pesan user di UI
+      renderMessage({
+        sender_type: 'user',
+        sender_name: userName,
+        message: text,
+        created_at: new Date().toISOString()
+      });
 
       inp.value = '';
       const payload = {
@@ -581,6 +610,19 @@
       const file = event.target.files[0];
       if (!file) return;
 
+      const userName = document.getElementById('inp-user-name').value.trim() || 'User';
+      const localPreviewUrl = URL.createObjectURL(file);
+
+      // Render local preview bubble
+      renderMessage({
+        sender_type: 'user',
+        sender_name: userName,
+        message: file.name,
+        file_url: localPreviewUrl,
+        attachment_url: localPreviewUrl,
+        created_at: new Date().toISOString()
+      });
+
       const formData = new FormData();
       formData.append('ticket_id', activeTicketId);
       formData.append('caption', file.name);
@@ -602,8 +644,17 @@
 
     function renderMessage(m) {
       const chatBox = document.getElementById('chat-box');
+      const emptyNotice = document.getElementById('empty-notice');
+      if (emptyNotice) emptyNotice.remove();
+
+      // Hindari duplikasi jika pesan AI yang sama sudah ter-render
+      if (m.id && document.getElementById(`msg-${m.id}`)) {
+        return;
+      }
+
       const div = document.createElement('div');
-      
+      if (m.id) div.id = `msg-${m.id}`;
+
       let senderType = m.sender_type || 'user';
       let badgeClass = 'badge-user';
       let badgeLabel = m.sender_name || 'User';
@@ -613,7 +664,7 @@
         badgeLabel = 'AI Assistant';
       } else if (senderType === 'programmer') {
         badgeClass = 'badge-prog';
-        badgeLabel = `Programmer (${m.sender_name || 'Support'})`;
+        badgeLabel = `Programmer (${m.assigned_programmer || m.sender_name || 'Support'})`;
       }
 
       div.className = `msg ${senderType}`;
@@ -623,11 +674,12 @@
         contentHtml += `<div>${escapeHtml(m.message)}</div>`;
       }
 
-      if (m.file_url) {
-        if (m.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          contentHtml += `<img src="${m.file_url}" class="msg-img" alt="Attachment" />`;
+      const fileUrl = m.file_url || m.attachment_url;
+      if (fileUrl) {
+        if (fileUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) || fileUrl.startsWith('blob:')) {
+          contentHtml += `<img src="${fileUrl}" class="msg-img" alt="Attachment" />`;
         } else {
-          contentHtml += `<div style="margin-top:6px;"><a href="${m.file_url}" target="_blank" style="color:#60a5fa;">📎 Download Attachment</a></div>`;
+          contentHtml += `<div style="margin-top:6px;"><a href="${fileUrl}" target="_blank" style="color:#60a5fa; text-decoration: underline;">📎 Download Attachment</a></div>`;
         }
       }
 
@@ -641,6 +693,9 @@
 
     function appendSystemMessage(text) {
       const chatBox = document.getElementById('chat-box');
+      const emptyNotice = document.getElementById('empty-notice');
+      if (emptyNotice) emptyNotice.remove();
+
       const div = document.createElement('div');
       div.style.textAlign = 'center';
       div.style.fontSize = '12px';
@@ -672,6 +727,7 @@
     }
 
     function escapeHtml(text) {
+      if (!text) return '';
       const div = document.createElement('div');
       div.innerText = text;
       return div.innerHTML;
