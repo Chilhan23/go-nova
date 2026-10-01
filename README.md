@@ -153,7 +153,7 @@ go run scripts/test_e2e.go
 
 ## API Documentation
 
-### Tickets
+### 1. Tickets
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -190,9 +190,24 @@ go run scripts/test_e2e.go
 }
 ```
 
+#### `POST /api/v1/tickets/:ticket_id/rate`
+```json
+// Request Body
+{
+  "rating": 5,
+  "review": "Fast response and very helpful assistance!"
+}
+
+// Response (200 OK)
+{
+  "status": true,
+  "message": "Terima kasih atas penilaian Anda!"
+}
+```
+
 ---
 
-### Chat & Attachments
+### 2. Chat & Attachments
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -219,8 +234,12 @@ go run scripts/test_e2e.go
 ```
 
 #### `POST /api/v1/chat/upload`
-```bash
-# Form-Data: ticket_id=1, caption="Error screenshot", attachment=@error.png
+**Request Type:** `multipart/form-data`
+* `ticket_id`: `1` (Text field)
+* `caption`: `Screenshot saat error tombol bayar` (Text field)
+* `attachment`: `[File Binary - Image PNG/JPG or Video MP4/WebM]`
+
+```json
 // Response (200 OK)
 {
   "status": true,
@@ -228,13 +247,45 @@ go run scripts/test_e2e.go
   "ai_msg_id": 15,
   "sender": "ai",
   "file_url": "http://localhost:8080/uploads/image_TCK-20261001-2be43e_1790867760.png",
-  "reply": "Thank you! We have received your screenshot. Our support team will review the issue shortly."
+  "reply": "Terima kasih Kak, tangkapan layar sudah kami terima. Tim Programmer akan segera menganalisa tampilan error tersebut."
+}
+```
+
+#### `GET /api/v1/tickets/:ticket_id/messages`
+```json
+// Response (200 OK)
+{
+  "status": true,
+  "data": [
+    {
+      "id": 12,
+      "ticket_id": 1,
+      "sender_type": "user",
+      "sender_name": "Rayhan",
+      "message": "Hello, how do I process a refund request?",
+      "is_attachment": false,
+      "attachment_type": "",
+      "attachment_url": "",
+      "created_at": "2026-10-01T21:40:05Z"
+    },
+    {
+      "id": 13,
+      "ticket_id": 1,
+      "sender_type": "ai",
+      "sender_name": "AI Support",
+      "message": "Hello! To process a refund, please navigate to Orders > Transactions, select the order, and click Request Refund.",
+      "is_attachment": false,
+      "attachment_type": "",
+      "attachment_url": "",
+      "created_at": "2026-10-01T21:40:07Z"
+    }
+  ]
 }
 ```
 
 ---
 
-### Real-Time WebSocket (`/ws`)
+### 3. Real-Time WebSocket (`/ws`)
 
 Connect client frontend widgets directly via WebSocket:
 ```text
@@ -245,9 +296,24 @@ ws://localhost:8080/ws?ticket_id=1&key=tenant_client_01
 - `helpdesk_new_message`: Dispatched when an AI reply or Telegram human responder sends a message.
 - `helpdesk_status_changed`: Dispatched when a ticket status changes (`escalated`, `waiting_user`, `resolved`).
 
+```json
+// Event Example: helpdesk_new_message
+{
+  "event": "helpdesk_new_message",
+  "data": {
+    "id": 16,
+    "ticket_id": 1,
+    "sender_type": "programmer",
+    "assigned_programmer": "Rayhan Programmer",
+    "message": "Issue has been resolved on the backend, please refresh!",
+    "created_at": "2026-10-01T21:45:00Z"
+  }
+}
+```
+
 ---
 
-### Telegram Webhook Relay
+### 4. Telegram Webhook Relay (`POST /webhook/telegram`)
 
 Register single webhook endpoint with Telegram Bot API:
 ```text
