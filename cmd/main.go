@@ -22,18 +22,23 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 1. Initialize Database
+	// 1. Initialize Database (GORM)
 	db, err := database.NewPostgresDB(cfg)
 	if err != nil {
 		log.Fatalf("Fatal: Database initialization error: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		sqlDB, err := db.DB()
+		if err == nil {
+			sqlDB.Close()
+		}
+	}()
 
 	// 2. Initialize WebSocket Hub
 	wsHub := websocket.NewHub()
 	go wsHub.Run()
 
-	// 3. Initialize Repositories
+	// 3. Initialize Repositories (GORM)
 	tenantRepo := tenant.NewRepository(db)
 	ticketRepo := ticket.NewRepository(db)
 	chatRepo := chat.NewRepository(db)
@@ -65,8 +70,11 @@ func main() {
 		c.Next()
 	})
 
-	// Static files (Uploads)
+	// Static files (Uploads & Web UI Demo)
 	r.Static("/uploads", cfg.UploadDir)
+	r.StaticFile("/", "./web/index.html")
+	r.StaticFile("/demo", "./web/index.html")
+	r.Static("/assets", "./web/assets")
 
 	// Health Check
 	r.GET("/health", func(c *gin.Context) {

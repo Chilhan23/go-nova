@@ -2,8 +2,8 @@ package chat
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
+
+	"gorm.io/gorm"
 )
 
 type Repository interface {
@@ -12,37 +12,22 @@ type Repository interface {
 }
 
 type repository struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
-func NewRepository(db *sql.DB) Repository {
+func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
 func (r *repository) Create(ctx context.Context, m *Message) error {
-	query := `INSERT INTO messages (ticket_id, sender_type, sender_name, message, is_attachment, attachment_type, attachment_url) 
-	          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at`
-	return r.db.QueryRowContext(ctx, query, m.TicketID, m.SenderType, m.SenderName, m.Message, m.IsAttachment, m.AttachmentType, m.AttachmentURL).Scan(
-		&m.ID, &m.CreatedAt,
-	)
+	return r.db.WithContext(ctx).Create(m).Error
 }
 
 func (r *repository) GetByTicketID(ctx context.Context, ticketID int) ([]Message, error) {
-	query := `SELECT id, ticket_id, sender_type, sender_name, message, is_attachment, attachment_type, attachment_url, created_at 
-	          FROM messages WHERE ticket_id = $1 ORDER BY id ASC`
-	rows, err := r.db.QueryContext(ctx, query, ticketID)
-	if err != nil {
-		return nil, fmt.Errorf("get messages error: %w", err)
-	}
-	defer rows.Close()
-
 	var list []Message
-	for rows.Next() {
-		var m Message
-		if err := rows.Scan(&m.ID, &m.TicketID, &m.SenderType, &m.SenderName, &m.Message, &m.IsAttachment, &m.AttachmentType, &m.AttachmentURL, &m.CreatedAt); err != nil {
-			return nil, err
-		}
-		list = append(list, m)
+	err := r.db.WithContext(ctx).Where("ticket_id = ?", ticketID).Order("id ASC").Find(&list).Error
+	if err != nil {
+		return nil, err
 	}
 	return list, nil
 }

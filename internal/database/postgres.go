@@ -1,35 +1,35 @@
 package database
 
 import (
-	"database/sql"
-	"fmt"
 	"log"
-	"time"
 
-	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"tech-nova/internal/config"
 )
 
-func NewPostgresDB(cfg *config.Config) (*sql.DB, error) {
-	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
-	)
+func NewPostgresDB(cfg *config.Config) (*gorm.DB, error) {
+	dsn := cfg.DatabaseURL
+	if dsn == "" {
+		dsn = "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=technova_db sslmode=disable"
+	}
 
-	db, err := sql.Open("postgres", dsn)
+	gormConfig := &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Warn),
+	}
+
+	db, err := gorm.Open(postgres.Open(dsn), gormConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, err
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(10)
-	db.SetConnMaxLifetime(15 * time.Minute)
-
-	if err := db.Ping(); err != nil {
-		log.Printf("[Database Warning] Unable to connect to PostgreSQL: %v (Continuing without DB lock)", err)
-		return db, nil
+	sqlDB, err := db.DB()
+	if err == nil {
+		sqlDB.SetMaxOpenConns(25)
+		sqlDB.SetMaxIdleConns(10)
 	}
 
-	log.Println("✅ [Database] Connected to PostgreSQL successfully")
+	log.Println("✅ [Database] Connected to PostgreSQL with GORM successfully")
 	return db, nil
 }

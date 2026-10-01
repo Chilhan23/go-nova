@@ -34,12 +34,15 @@ func (s *service) GetOrCreateActive(ctx context.Context, req InitTicketRequest, 
 
 	code := fmt.Sprintf("TCK-%s-%s", time.Now().Format("20060102"), uuid.New().String()[:6])
 	newTicket := &Ticket{
-		TenantID:       t.ID,
-		TicketCode:     code,
-		UserName:       req.UserName,
-		ModuleName:     req.ModuleName,
-		DiagnosticInfo: req.DiagnosticInfo,
-		Status:         "open",
+		TenantID:   t.ID,
+		TicketCode: code,
+		UserName:   req.UserName,
+		ModuleName: req.ModuleName,
+		Status:     "open",
+	}
+	if len(req.DiagnosticInfo) > 0 {
+		diagStr := string(req.DiagnosticInfo)
+		newTicket.DiagnosticInfo = &diagStr
 	}
 	if req.UserID != "" {
 		newTicket.UserID = &req.UserID

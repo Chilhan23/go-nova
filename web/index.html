@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TechNova — Helpdesk & AI Live Testing Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(18, 24, 38, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #10b981;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --bubble-user: #1e293b;
+      --bubble-ai: #1e1b4b;
+      --bubble-prog: #064e3b;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 10% 20%, #0f172a 0%, #090d16 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid var(--card-border);
+      background: rgba(9, 13, 22, 0.8);
+      backdrop-filter: blur(12px);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+
+    .status-dot.connected {
+      background: var(--accent);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 320px 1fr 380px;
+      gap: 20px;
+      padding: 20px;
+      flex: 1;
+      height: calc(100vh - 73px);
+    }
+
+    .panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--card-border);
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input, select, textarea {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Chat Area */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      position: relative;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .msg.ai {
+      align-self: flex-start;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #e0e7ff;
+      border-bottom-left-radius: 2px;
+    }
+
+    .msg.programmer {
+      align-self: flex-start;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #d1fae5;
+      border-bottom-left-radius: 2px;
+    }
+
+    .msg-header {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.85;
+    }
+
+    .msg-img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-top: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .msg-time {
+      font-size: 10px;
+      opacity: 0.6;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    .chat-input-bar {
+      padding: 12px 16px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.6);
+      align-items: center;
+    }
+
+    .chat-input-bar input[type="text"] {
+      flex: 1;
+    }
+
+    /* Logs Area */
+    .log-box {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      background: #050811;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-item {
+      padding: 6px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 3px solid #64748b;
+      word-break: break-all;
+    }
+
+    .log-item.ws-in {
+      border-left-color: #10b981;
+    }
+
+    .log-item.ws-event {
+      border-left-color: #8b5cf6;
+    }
+
+    .log-item.error {
+      border-left-color: #ef4444;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-user { background: rgba(59, 130, 246, 0.3); color: #93c5fd; }
+    .badge-ai { background: rgba(139, 92, 246, 0.3); color: #c4b5fd; }
+    .badge-prog { background: rgba(16, 185, 129, 0.3); color: #6ee7b7; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-badge">TECH NOVA</div>
+      <div class="brand-title">Helpdesk, AI Gateway & Telegram Relay Live Console</div>
+    </div>
+    <div class="status-pill">
+      <span class="status-dot" id="ws-dot"></span>
+      <span id="ws-status">WebSocket: Disconnected</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Left: Ticket Settings & Actions -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>1. Ticket Configuration</span>
+      </div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label>Hospital Key Identifier</label>
+          <input type="text" id="inp-key" value="kemkes_1101015" placeholder="e.g. kemkes_1101015" />
+        </div>
+        <div class="form-group">
+          <label>Hospital / Tenant Name</label>
+          <input type="text" id="inp-tenant" value="RSUD Meuraxa" />
+        </div>
+        <div class="form-group">
+          <label>User ID & Name</label>
+          <input type="text" id="inp-user-id" value="205" placeholder="User ID" />
+          <input type="text" id="inp-user-name" value="Fajar (Admin Rawat Inap)" placeholder="User Name" />
+        </div>
+        <div class="form-group">
+          <label>Module Name</label>
+          <input type="text" id="inp-module" value="Rawat Inap" />
+        </div>
+        <button id="btn-init-ticket" onclick="initTicket()">🎫 Initialize Ticket</button>
+
+        <hr style="border: 0; border-top: 1px solid var(--card-border); margin: 6px 0;" />
+
+        <div class="form-group">
+          <label>Active Ticket Info</label>
+          <div style="font-size: 12px; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+            <div><b>Ticket ID:</b> <span id="lbl-ticket-id" style="color: #60a5fa;">-</span></div>
+            <div><b>Code:</b> <span id="lbl-ticket-code" style="color: #60a5fa;">-</span></div>
+            <div><b>Status:</b> <span id="lbl-ticket-status" style="color: #34d399;">-</span></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>CSAT Rating (1 - 5)</label>
+          <div style="display: flex; gap: 6px;">
+            <select id="sel-rating" style="flex: 1;">
+              <option value="5">⭐⭐⭐⭐⭐ (5)</option>
+              <option value="4">⭐⭐⭐⭐ (4)</option>
+              <option value="3">⭐⭐⭐ (3)</option>
+              <option value="2">⭐⭐ (2)</option>
+              <option value="1">⭐ (1)</option>
+            </select>
+            <button onclick="submitRating()" style="padding: 6px 12px;">Rate</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Interactive Chat -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>2. Live Conversation (<span id="chat-header-info">No Ticket Initialized</span>)</span>
+        <button onclick="clearChat()" style="padding: 4px 8px; font-size: 11px; background: rgba(255,255,255,0.1);">Clear</button>
+      </div>
+
+      <div class="chat-messages" id="chat-box">
+        <div style="text-align: center; color: var(--text-muted); font-size: 13px; margin: auto;">
+          Click "Initialize Ticket" to start session and connect WebSocket.
+        </div>
+      </div>
+
+      <div class="chat-input-bar">
+        <input type="file" id="inp-file" style="display: none;" onchange="handleFileUpload(event)" accept="image/*,video/*,application/pdf" />
+        <button onclick="document.getElementById('inp-file').click()" style="background: rgba(255,255,255,0.08); padding: 10px 12px;" title="Attach Image/Video">
+          📎
+        </button>
+        <input type="text" id="inp-msg" placeholder="Type a message or issue description..." onkeydown="if(event.key==='Enter') sendMessage()" />
+        <button id="btn-send" onclick="sendMessage()">Send ➔</button>
+      </div>
+    </div>
+
+    <!-- Right: Real-time WebSocket Event Inspector -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>3. WebSocket & Event Logs</span>
+        <button onclick="clearLogs()" style="padding: 4px 8px; font-size: 11px; background: rgba(255,255,255,0.1);">Clear</button>
+      </div>
+      <div class="panel-body" style="padding: 12px;">
+        <div class="log-box" id="log-box">
+          <div class="log-item">Ready. Logs and real-time WebSocket payloads will appear here.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeTicketId = null;
+    let activeTicketCode = null;
+    let ws = null;
+    const API_BASE = window.location.origin;
+
+    function addLog(type, text, data = null) {
+      const logBox = document.getElementById('log-box');
+      const item = document.createElement('div');
+      item.className = 'log-item ' + (type || '');
+      const time = new Date().toLocaleTimeString();
+      let content = `[${time}] ${text}`;
+      if (data) {
+        content += '\n' + JSON.stringify(data, null, 2);
+      }
+      item.innerText = content;
+      logBox.appendChild(item);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('log-box').innerHTML = '<div class="log-item">Logs cleared.</div>';
+    }
+
+    function clearChat() {
+      document.getElementById('chat-box').innerHTML = '';
+    }
+
+    async function initTicket() {
+      const payload = {
+        key_identifier: document.getElementById('inp-key').value.trim(),
+        app_name: "KlikMedic SIMRS",
+        tenant_name: document.getElementById('inp-tenant').value.trim(),
+        user_id: document.getElementById('inp-user-id').value.trim(),
+        user_name: document.getElementById('inp-user-name').value.trim(),
+        module_name: document.getElementById('inp-module').value.trim()
+      };
+
+      try {
+        addLog('ws-event', 'POST /api/v1/tickets/init', payload);
+        const res = await fetch(`${API_BASE}/api/v1/tickets/init`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.status && data.ticket) {
+          activeTicketId = data.ticket.id;
+          activeTicketCode = data.ticket.ticket_code;
+          document.getElementById('lbl-ticket-id').innerText = activeTicketId;
+          document.getElementById('lbl-ticket-code').innerText = activeTicketCode;
+          document.getElementById('lbl-ticket-status').innerText = data.ticket.status;
+          document.getElementById('chat-header-info').innerText = `${activeTicketCode} (ID: ${activeTicketId})`;
+
+          addLog('ws-in', `Ticket Initialized: ID=${activeTicketId}`, data.ticket);
+          clearChat();
+          appendSystemMessage(`Ticket #${activeTicketCode} initialized for ${payload.user_name} (${payload.module_name}). Connecting WebSocket...`);
+          connectWebSocket(activeTicketId);
+        } else {
+          addLog('error', 'Init Ticket Failed', data);
+          alert('Failed to init ticket: ' + JSON.stringify(data));
+        }
+      } catch (err) {
+        addLog('error', 'Init Error: ' + err.message);
+      }
+    }
+
+    function connectWebSocket(ticketId) {
+      if (ws) {
+        ws.close();
+      }
+
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws?ticket_id=${ticketId}`;
+
+      addLog('ws-event', `Connecting WebSocket: ${wsUrl}`);
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        document.getElementById('ws-dot').classList.add('connected');
+        document.getElementById('ws-status').innerText = `WebSocket: Connected (Ticket #${ticketId})`;
+        addLog('ws-in', `WebSocket connected to ticket room #${ticketId}`);
+      };
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          addLog('ws-in', `WebSocket Received: ${msg.event || 'message'}`, msg);
+
+          if (msg.event === 'new_message' && msg.data) {
+            renderMessage(msg.data);
+          } else if (msg.event === 'ticket_claimed') {
+            appendSystemMessage(`🧑‍💻 Ticket has been claimed by programmer: ${msg.data.programmer_name || 'Support Team'}`);
+            document.getElementById('lbl-ticket-status').innerText = 'in_progress';
+          }
+        } catch (e) {
+          addLog('ws-in', 'Raw WS: ' + evt.data);
+        }
+      };
+
+      ws.onclose = () => {
+        document.getElementById('ws-dot').classList.remove('connected');
+        document.getElementById('ws-status').innerText = 'WebSocket: Disconnected';
+        addLog('error', 'WebSocket connection closed');
+      };
+
+      ws.onerror = (err) => {
+        addLog('error', 'WebSocket error occurred');
+      };
+    }
+
+    async function sendMessage() {
+      if (!activeTicketId) {
+        alert('Please initialize a ticket first!');
+        return;
+      }
+
+      const inp = document.getElementById('inp-msg');
+      const text = inp.value.trim();
+      if (!text) return;
+
+      inp.value = '';
+      const payload = {
+        ticket_id: activeTicketId,
+        message: text
+      };
+
+      addLog('ws-event', 'POST /api/v1/chat/send', payload);
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/chat/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        addLog('ws-in', 'Send Response', data);
+      } catch (err) {
+        addLog('error', 'Send Error: ' + err.message);
+      }
+    }
+
+    async function handleFileUpload(event) {
+      if (!activeTicketId) {
+        alert('Please initialize a ticket first!');
+        return;
+      }
+
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('ticket_id', activeTicketId);
+      formData.append('caption', file.name);
+      formData.append('attachment', file);
+
+      addLog('ws-event', `Uploading file: ${file.name} (${(file.size/1024).toFixed(1)} KB)`);
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/chat/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        addLog('ws-in', 'Upload Response', data);
+        event.target.value = '';
+      } catch (err) {
+        addLog('error', 'Upload Error: ' + err.message);
+      }
+    }
+
+    function renderMessage(m) {
+      const chatBox = document.getElementById('chat-box');
+      const div = document.createElement('div');
+      
+      let senderType = m.sender_type || 'user';
+      let badgeClass = 'badge-user';
+      let badgeLabel = m.sender_name || 'User';
+
+      if (senderType === 'ai') {
+        badgeClass = 'badge-ai';
+        badgeLabel = 'AI Assistant';
+      } else if (senderType === 'programmer') {
+        badgeClass = 'badge-prog';
+        badgeLabel = `Programmer (${m.sender_name || 'Support'})`;
+      }
+
+      div.className = `msg ${senderType}`;
+      
+      let contentHtml = `<div class="msg-header"><span class="badge ${badgeClass}">${badgeLabel}</span></div>`;
+      if (m.message) {
+        contentHtml += `<div>${escapeHtml(m.message)}</div>`;
+      }
+
+      if (m.file_url) {
+        if (m.file_url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          contentHtml += `<img src="${m.file_url}" class="msg-img" alt="Attachment" />`;
+        } else {
+          contentHtml += `<div style="margin-top:6px;"><a href="${m.file_url}" target="_blank" style="color:#60a5fa;">📎 Download Attachment</a></div>`;
+        }
+      }
+
+      const timeStr = m.created_at ? new Date(m.created_at).toLocaleTimeString() : new Date().toLocaleTimeString();
+      contentHtml += `<div class="msg-time">${timeStr}</div>`;
+
+      div.innerHTML = contentHtml;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function appendSystemMessage(text) {
+      const chatBox = document.getElementById('chat-box');
+      const div = document.createElement('div');
+      div.style.textAlign = 'center';
+      div.style.fontSize = '12px';
+      div.style.color = '#94a3b8';
+      div.style.padding = '8px';
+      div.innerText = text;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function submitRating() {
+      if (!activeTicketId) {
+        alert('Please initialize a ticket first!');
+        return;
+      }
+      const rating = parseInt(document.getElementById('sel-rating').value, 10);
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/tickets/${activeTicketId}/rate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rating: rating, feedback: "Rating submitted via web test console" })
+        });
+        const data = await res.json();
+        addLog('ws-in', `Rating ${rating} submitted`, data);
+        alert('CSAT Rating Submitted successfully!');
+      } catch (err) {
+        addLog('error', 'Rate Error: ' + err.message);
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
